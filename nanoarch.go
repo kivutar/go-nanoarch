@@ -67,6 +67,7 @@ var video struct {
 }
 
 var scale = 3.0
+var originalAspectRatio float64
 
 const bufSize = 1024 * 4
 
@@ -128,27 +129,40 @@ func videoSetPixelFormat(format uint32) C.bool {
 /**
  * When resizing the window, resize the content.
  */
-func resizedFramebuffer(w *glfw.Window, width int, height int) {
-	gl.Viewport(0, 0, int32(width), int32(height))
+func resizedFramebuffer(w *glfw.Window, screenWidth int, screenHeight int) {
+	// Scale the content to fit in the viewport.
+	width := float64(screenWidth)
+	height := float64(screenHeight)
+	viewWidth := width
+	viewHeight := width / originalAspectRatio
+	if (viewHeight > height) {
+		viewHeight = height
+		viewWidth = height * originalAspectRatio
+	}
+
+	// Place the content in the middle of the window.
+	vportX := (width - viewWidth) / 2
+	vportY := (height - viewHeight) / 2
+
+	gl.Viewport(int32(vportX), int32(vportY), int32(viewWidth), int32(viewHeight));
 }
 
 func createWindow(width int, height int) {
-	glfw.WindowHint(glfw.Resizable, glfw.False)
 	glfw.WindowHint(glfw.ContextVersionMajor, 4)
 	glfw.WindowHint(glfw.ContextVersionMinor, 1)
 	glfw.WindowHint(glfw.Resizable, 1)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
 	var err error
-	window, err = glfw.CreateWindow(width, height, "nanorarch", nil, nil)
+	window, err = glfw.CreateWindow(width, height, "nanoarch", nil, nil)
 	if err != nil {
 		panic(err)
 	}
 
 	window.MakeContextCurrent()
 
-	// Force the same aspect ratio.
-	window.SetAspectRatio(width, height)
+	// Force a minimum size for the window.
+	window.SetSizeLimits(160, 120, glfw.DontCare, glfw.DontCare)
 
 	// When resizing the window, also resize the content.
 	window.SetFramebufferSizeCallback(resizedFramebuffer)
@@ -208,8 +222,8 @@ func resizeToAspect(ratio float64, sw float64, sh float64) (dw float64, dh float
 }
 
 func videoConfigure(geom *C.struct_retro_game_geometry) {
-
-	nwidth, nheight := resizeToAspect(float64(geom.aspect_ratio), float64(geom.base_width), float64(geom.base_height))
+	originalAspectRatio = float64(geom.aspect_ratio)
+	nwidth, nheight := resizeToAspect(originalAspectRatio, float64(geom.base_width), float64(geom.base_height))
 
 	nwidth = nwidth * scale
 	nheight = nheight * scale
