@@ -291,6 +291,10 @@ func audioInit(rate C.double) {
 	audio.source = al.GenSources(1)[0]
 	audio.buffers = al.GenBuffers(int(audio.numBuffers))
 	audio.resPtr = audio.numBuffers
+
+	if retroAudioSetStateCallback {
+		retroAudioSetStateCallback(true)
+	}
 }
 
 func min(a, b C.size_t) C.size_t {
@@ -409,6 +413,11 @@ func coreEnvironment(cmd C.unsigned, data unsafe.Pointer) C.bool {
 		bval := (*C.bool)(data)
 		*bval = C.bool(true)
 		break
+	case C.RETRO_ENVIRONMENT_SET_AUDIO_CALLBACK:
+		audio_cb := (*C.struct_retro_audio_callback)(data)
+		retroAudioCallback = audio_cb.callback
+		retroAudioSetStateCallback = audio_cb.set_state
+		break
 	case C.RETRO_ENVIRONMENT_SET_PIXEL_FORMAT:
 		format := (*C.enum_retro_pixel_format)(data)
 		if *format > C.RETRO_PIXEL_FORMAT_RGB565 {
@@ -448,6 +457,8 @@ var retroSetEnvironment unsafe.Pointer
 var retroSetVideoRefresh unsafe.Pointer
 var retroSetInputPoll unsafe.Pointer
 var retroSetInputState unsafe.Pointer
+var retroAudioCallback unsafe.Pointer
+var retroAudioSetStateCallback unsafe.Pointer
 var retroSetAudioSample unsafe.Pointer
 var retroSetAudioSampleBatch unsafe.Pointer
 var retroRun unsafe.Pointer
@@ -587,6 +598,11 @@ func main() {
 	coreLoadGame(*gamePath)
 
 	for !window.ShouldClose() {
+		// Ask the core to emit audio.
+		if retroAudioCallback {
+			retroAudioCallback()
+		}
+
 		glfw.PollEvents()
 
 		C.bridge_retro_run(retroRun)
