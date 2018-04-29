@@ -67,7 +67,7 @@ var video struct {
 }
 
 var scale = 3.0
-var originalAspectRatio float64 = 0.0
+var originalAspectRatio float64
 
 const bufSize = 1024 * 4
 
