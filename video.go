@@ -14,6 +14,7 @@ import (
 var window *glfw.Window
 
 var scale = 3.0
+var originalAspectRatio float64
 
 var video struct {
 	program uint32
@@ -55,8 +56,22 @@ func videoSetPixelFormat(format uint32) bool {
 }
 
 // When resizing the window, resize the content.
-func resizedFramebuffer(w *glfw.Window, width int, height int) {
-	gl.Viewport(0, 0, int32(width), int32(height))
+func resizedFramebuffer(w *glfw.Window, screenWidth int, screenHeight int) {
+	// Scale the content to fit in the viewport.
+	width := float64(screenWidth)
+	height := float64(screenHeight)
+	viewWidth := width
+	viewHeight := width / originalAspectRatio
+	if (viewHeight > height) {
+		viewHeight = height
+		viewWidth = height * originalAspectRatio
+	}
+
+	// Place the content in the middle of the window.
+	vportX := (width - viewWidth) / 2
+	vportY := (height - viewHeight) / 2
+
+	gl.Viewport(int32(vportX), int32(vportY), int32(viewWidth), int32(viewHeight));
 }
 
 func createWindow(width int, height int) {
@@ -74,8 +89,8 @@ func createWindow(width int, height int) {
 
 	window.MakeContextCurrent()
 
-	// Force the same aspect ratio.
-	window.SetAspectRatio(width, height)
+	// Force a minimum size for the window.
+	window.SetSizeLimits(160, 120, glfw.DontCare, glfw.DontCare)
 
 	// When resizing the window, also resize the content.
 	window.SetFramebufferSizeCallback(resizedFramebuffer)
@@ -135,7 +150,8 @@ func resizeToAspect(ratio float64, sw float64, sh float64) (dw float64, dh float
 }
 
 func videoConfigure(geom retroGameGeometry) {
-	nwidth, nheight := resizeToAspect(geom.aspectRatio, float64(geom.baseWidth), float64(geom.baseHeight))
+	originalAspectRatio = float64(geom.aspectRatio)
+	nwidth, nheight := resizeToAspect(originalAspectRatio, float64(geom.baseWidth), float64(geom.baseHeight))
 
 	nwidth = nwidth * scale
 	nheight = nheight * scale
